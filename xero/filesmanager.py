@@ -4,6 +4,7 @@ import os
 import requests
 from six.moves.urllib.parse import parse_qs
 
+from .auth import OAuth2Credentials
 from .constants import XERO_FILES_URL
 from .exceptions import (
     XeroBadRequest,
@@ -14,6 +15,7 @@ from .exceptions import (
     XeroNotFound,
     XeroNotImplemented,
     XeroRateLimitExceeded,
+    XeroTenantIdNotSet,
     XeroUnauthorized,
     XeroUnsupportedMediaType,
 )
@@ -69,6 +71,14 @@ class FilesManager(object):
             uri, params, method, body, headers, singleobject, files = func(
                 *args, **kwargs
             )
+
+            if isinstance(self.credentials, OAuth2Credentials):
+                if self.credentials.tenant_id:
+                    headers = {
+                        "Xero-tenant-id": self.credentials.tenant_id
+                    }
+                else:
+                    raise XeroTenantIdNotSet
 
             response = getattr(requests, method)(
                 uri,
