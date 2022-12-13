@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import os
 import requests
 from six.moves.urllib.parse import parse_qs
+
 from .auth import OAuth2Credentials
 from .constants import XERO_FILES_URL
 from .exceptions import (
