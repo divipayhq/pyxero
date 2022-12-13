@@ -73,7 +73,9 @@ class FilesManager(object):
 
             if isinstance(self.credentials, OAuth2Credentials):
                 if self.credentials.tenant_id:
-                    headers["Xero-tenant-id"] = self.credentials.tenant_id
+                    headers = {
+                        "Xero-tenant-id": self.credentials.tenant_id
+                    }
                 else:
                     raise XeroTenantIdNotSet
 
