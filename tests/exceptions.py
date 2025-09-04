@@ -4,6 +4,7 @@ import unittest
 from datetime import date
 from mock import Mock, patch
 
+from tests import mock_data
 from xero import Xero
 from xero.exceptions import (
     XeroBadRequest,
@@ -16,8 +17,6 @@ from xero.exceptions import (
     XeroRateLimitExceeded,
     XeroUnauthorized,
 )
-
-from . import mock_data
 
 
 class ExceptionsTest(unittest.TestCase):
