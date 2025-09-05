@@ -8,10 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Set up Python 3.9.15
+    - name: Set up Python 3.9
       uses: actions/setup-python@v1
       with:
-        python-version: 3.9.15
+        python-version: 3.9
     - name: Install dependencies
       run: |
         pip install --upgrade pip 
@@ -25,23 +25,23 @@ jobs:
         isort -c .
 
   smoke:
-    name: Smoke test (3.9.15)
+    name: Smoke test (3.9)
     needs: precheck
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Set up Python 3.9.15
+    - name: Set up Python 3.9
       uses: actions/setup-python@v1
       with:
-        python-version: 3.9.15
+        python-version: 3.9
     - name: Install dependencies
       run: |
         pip install --upgrade pip 
         pip install --upgrade setuptools
-        pip install -e .
+        pip install -e .[test]
     - name: Test
       run: |
-        python setup.py test
+        python -m unittest discover -s tests -p "*.py" -v
 
   python-versions:
     name: Python compatibility test
@@ -50,7 +50,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        python-version: ["3.9", "3.10"]
     steps:
     - uses: actions/checkout@v1
     - name: Set up Python ${{ matrix.python-version }}
@@ -61,7 +61,14 @@ jobs:
       run: |
         pip install --upgrade pip 
         pip install --upgrade setuptools
-        pip install -e .
+        pip install -e .[test]
     - name: Test
       run: |
-        python setup.py test
+        python -m unittest discover -s tests -p "*.py" -v
+  
+  merge-checks-complete:
+    runs-on: ubuntu-latest
+    needs: [smoke, python-versions]
+    steps:
+        - name: merge-checks-complete
+          run: echo 0

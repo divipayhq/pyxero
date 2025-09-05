@@ -34,9 +34,9 @@ setup(
         'PyJWT>=1.6.4',  # This is required as part of oauthlib but doesn't seem to get included sometimes.
         'cryptography>=1.3.1',  # As above, but fixes issue with missing module imports not picked up for some reason.
     ],
-    tests_require=[
-        'mock',
-    ],
+    extras_require={
+        'test': ['mock'],
+    },
     license='New BSD',
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -52,5 +52,4 @@ setup(
         'Programming Language :: Python :: 3.9',
         'Topic :: Office/Business :: Financial :: Accounting',
     ],
-    test_suite="tests",
 )
