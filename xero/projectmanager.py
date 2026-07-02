@@ -17,6 +17,7 @@ from .exceptions import (
     XeroUnauthorized,
     XeroUnsupportedMediaType,
 )
+from .instrumentation import record_response_size
 
 
 class ProjectManager(object):
@@ -73,6 +74,7 @@ class ProjectManager(object):
                 params=params,
                 files=files,
             )
+            record_response_size(response)
 
             if response.status_code == 200 or response.status_code == 201:
                 if response.headers["content-type"].startswith("application/json"):
