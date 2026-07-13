@@ -5,6 +5,7 @@ import requests
 from six.moves.urllib.parse import parse_qs
 
 from xero.auth import OAuth2Credentials
+from xero.instrumentation import record_response_size
 
 from .constants import XERO_BANK_FEEDS_URL
 from .exceptions import (
@@ -68,6 +69,7 @@ class BankFeedsManager(object):
                 auth=self.credentials.oauth,
                 params=params,
             )
+            record_response_size(response)
 
             if response.status_code == 200 or response.status_code == 201 or response.status_code == 202:
                 if response.headers["content-type"].startswith("application/json"):

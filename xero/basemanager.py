@@ -21,6 +21,7 @@ from .exceptions import (
     XeroTenantIdNotSet,
     XeroUnauthorized,
 )
+from .instrumentation import record_response_size
 from .utils import isplural, json_load_object_hook, singular
 
 
@@ -227,6 +228,7 @@ class BaseManager(object):
                 params=params,
                 timeout=timeout,
             )
+            record_response_size(response)
 
             if response.status_code == 200:
                 # If we haven't got XML or JSON, assume we're being returned a
