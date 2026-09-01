@@ -182,8 +182,8 @@ class BaseManager(object):
     def _parse_api_response(self, response, resource_name):
         data = json.loads(response.text, object_hook=json_load_object_hook)
         # Not every endpoint wraps its response in a Status envelope: deleting an
-        # allocation answers with a bare Allocation. The 2xx already told us Xero did
-        # the work, so only check the envelope when there is one to check.
+        # allocation answers with a bare Allocation. Only check the envelope when
+        # there is one to check.
         if "Status" in data:
             assert data["Status"] == "OK", (
                 "Expected the API to say OK but received %s" % data["Status"]
@@ -364,8 +364,8 @@ class BaseManager(object):
     def _put_allocation(self, id, allocation, idempotency_key=None):
         """Allocate this object's credit against an invoice.
 
-        `allocation` is a single allocation, not a list: the endpoint is atomic by
-        default, so one call per invoice stops a single bad row sinking the rest.
+        Takes a single allocation, not a list: Xero rejects the whole request if any
+        one element fails validation.
 
         Note that "Date" is one of the DATE_FIELDS, so pass a date or datetime for it
         rather than a string.
@@ -374,7 +374,9 @@ class BaseManager(object):
         root_elm = Element("Allocations")
         self.dict_to_xml(SubElement(root_elm, "Allocation"), allocation)
         body = six.u(tostring(root_elm))
-        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
+        headers = None
+        if idempotency_key is not None:
+            headers = {"Idempotency-Key": idempotency_key}
         return uri, {}, "put", body, headers, False
 
     def _delete_allocation(self, id, allocation_id):

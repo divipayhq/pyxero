@@ -426,14 +426,7 @@ class ManagerTest(unittest.TestCase):
         self.assertEqual(method, "put")
         self.assertEqual(params, {})
         self.assertEqual(headers, {"Idempotency-Key": "weel-allocation-alloc-1-40.00"})
-        self.assertXMLEqual(
-            body,
-            "<Allocations><Allocation>"
-            "<AppliedAmount>40.00</AppliedAmount>"
-            "<Date>2026-08-26T00:00:00</Date>"
-            "<Invoice><InvoiceID>inv-1</InvoiceID></Invoice>"
-            "</Allocation></Allocations>",
-        )
+        self.assertFalse(singleobject)
 
     def test_put_allocation_without_idempotency_key(self):
         """The idempotency key is optional
@@ -516,6 +509,28 @@ class ManagerTest(unittest.TestCase):
             "</Allocation></Allocations>",
         )
 
+    @patch("xero.basemanager.requests")
+    def test_delete_allocation_request(self, request):
+        """Deleting an allocation should not trip over the missing Status envelope
+        """
+
+        credentials = Mock(base_url="https://api.xero.com", user_agent=None)
+        manager = Manager("CreditNotes", credentials)
+        request.delete.return_value = Mock(
+            status_code=200,
+            headers={"content-type": "application/json"},
+            text='{"AllocationID": "asp-alloc-1"}',
+            content=b"",
+        )
+
+        result = manager.delete_allocation("cn-1", "asp-alloc-1")
+
+        self.assertEqual(
+            request.delete.call_args.args[0],
+            "https://api.xero.com/api.xro/2.0/CreditNotes/cn-1/Allocations/asp-alloc-1",
+        )
+        self.assertEqual(result, {"AllocationID": "asp-alloc-1"})
+
     def test_idempotency_key_must_be_a_string(self):
         """A non-string idempotency key should fail before the request is made
         """
@@ -524,9 +539,7 @@ class ManagerTest(unittest.TestCase):
         manager = Manager("CreditNotes", credentials)
 
         with self.assertRaises(TypeError):
-            manager._get_data(
-                lambda: ("_", {}, "put", None, {"Idempotency-Key": 1234}, False)
-            )()
+            manager.put_allocation("cn-1", {"AppliedAmount": "40.00"}, 1234)
 
     def test_idempotency_key_length_is_checked(self):
         """An empty or over-long idempotency key should fail before the request is made
@@ -536,10 +549,9 @@ class ManagerTest(unittest.TestCase):
         manager = Manager("CreditNotes", credentials)
 
         for key in ("", "x" * 129):
-            with self.assertRaises(ValueError):
-                manager._get_data(
-                    lambda: ("_", {}, "put", None, {"Idempotency-Key": key}, False)
-                )()
+            with self.subTest(key=key):
+                with self.assertRaises(ValueError):
+                    manager.put_allocation("cn-1", {"AppliedAmount": "40.00"}, key)
 
     def test_parse_api_response_without_a_status_envelope(self):
         """A response with no Status should be returned rather than raising
