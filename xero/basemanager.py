@@ -41,6 +41,7 @@ class BaseManager(object):
     )
     OBJECT_DECORATED_METHODS = {
         "Invoices": ["email", "online_invoice"],
+        "CreditNotes": ["put_allocation", "delete_allocation"],
     }
     DATETIME_FIELDS = (
         "UpdatedDateUTC",
@@ -180,9 +181,13 @@ class BaseManager(object):
 
     def _parse_api_response(self, response, resource_name):
         data = json.loads(response.text, object_hook=json_load_object_hook)
-        assert data["Status"] == "OK", (
-            "Expected the API to say OK but received %s" % data["Status"]
-        )
+        # Not every endpoint wraps its response in a Status envelope: deleting an
+        # allocation answers with a bare Allocation. The 2xx already told us Xero did
+        # the work, so only check the envelope when there is one to check.
+        if "Status" in data:
+            assert data["Status"] == "OK", (
+                "Expected the API to say OK but received %s" % data["Status"]
+            )
 
         try:
             return data[resource_name]
@@ -204,6 +209,18 @@ class BaseManager(object):
                 headers = {}
 
             headers["Content-Type"] = "application/xml"
+
+            # Xero caps idempotency keys at 128 characters and rejects an empty one.
+            # Catch it here rather than paying a round trip to find out.
+            if "Idempotency-Key" in headers:
+                idempotency_key = headers["Idempotency-Key"]
+                if not isinstance(idempotency_key, six.string_types):
+                    raise TypeError("Idempotency key must be a string.")
+                if not 0 < len(idempotency_key) <= 128:
+                    raise ValueError(
+                        "A provided Idempotency key must be between "
+                        "1 and 128 characters long."
+                    )
 
             if isinstance(self.credentials, OAuth2Credentials):
                 if self.credentials.tenant_id:
@@ -342,6 +359,30 @@ class BaseManager(object):
 
     def _delete(self, id):
         uri = "/".join([self.base_url, self.name, id])
+        return uri, {}, "delete", None, None, False
+
+    def _put_allocation(self, id, allocation, idempotency_key=None):
+        """Allocate this object's credit against an invoice.
+
+        `allocation` is a single allocation, not a list: the endpoint is atomic by
+        default, so one call per invoice stops a single bad row sinking the rest.
+
+        Note that "Date" is one of the DATE_FIELDS, so pass a date or datetime for it
+        rather than a string.
+        """
+        uri = "/".join([self.base_url, self.name, id, "Allocations"])
+        root_elm = Element("Allocations")
+        self.dict_to_xml(SubElement(root_elm, "Allocation"), allocation)
+        body = six.u(tostring(root_elm))
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
+        return uri, {}, "put", body, headers, False
+
+    def _delete_allocation(self, id, allocation_id):
+        """Take back an allocation made against an invoice.
+
+        Xero accepts no idempotency key here; a repeated call raises XeroNotFound.
+        """
+        uri = "/".join([self.base_url, self.name, id, "Allocations", allocation_id])
         return uri, {}, "delete", None, None, False
 
     def _put_history_data(self, id, details):
