@@ -181,9 +181,7 @@ class BaseManager(object):
 
     def _parse_api_response(self, response, resource_name):
         data = json.loads(response.text, object_hook=json_load_object_hook)
-        # Not every endpoint wraps its response in a Status envelope: deleting an
-        # allocation answers with a bare Allocation. Only check the envelope when
-        # there is one to check.
+        # Deleting an allocation answers with a bare Allocation and no Status envelope.
         if "Status" in data:
             assert data["Status"] == "OK", (
                 "Expected the API to say OK but received %s" % data["Status"]
@@ -210,8 +208,7 @@ class BaseManager(object):
 
             headers["Content-Type"] = "application/xml"
 
-            # Xero caps idempotency keys at 128 characters and rejects an empty one.
-            # Catch it here rather than paying a round trip to find out.
+            # Xero caps keys at 128 characters and rejects an empty one.
             if "Idempotency-Key" in headers:
                 idempotency_key = headers["Idempotency-Key"]
                 if not isinstance(idempotency_key, six.string_types):
@@ -364,11 +361,7 @@ class BaseManager(object):
     def _put_allocation(self, id, allocation, idempotency_key=None):
         """Allocate this object's credit against an invoice.
 
-        Takes a single allocation, not a list: Xero rejects the whole request if any
-        one element fails validation.
-
-        Note that "Date" is one of the DATE_FIELDS, so pass a date or datetime for it
-        rather than a string.
+        Takes one allocation, not a list. "Date" is a DATE_FIELD, so pass a date.
         """
         uri = "/".join([self.base_url, self.name, id, "Allocations"])
         root_elm = Element("Allocations")

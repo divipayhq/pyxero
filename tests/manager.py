@@ -469,14 +469,14 @@ class ManagerTest(unittest.TestCase):
         self.assertFalse(hasattr(invoices, "put_allocation"))
         self.assertFalse(hasattr(invoices, "delete_allocation"))
 
-    @patch("xero.basemanager.requests")
+    @patch("xero.basemanager.requests.put")
     def test_put_allocation_request(self, request):
         """The decorated method should assemble the whole request
         """
 
         credentials = Mock(base_url="https://api.xero.com", user_agent=None)
         manager = Manager("CreditNotes", credentials)
-        request.put.return_value = Mock(
+        request.return_value = Mock(
             status_code=200,
             headers={"content-type": "application/json"},
             text='{"Status": "OK", "CreditNotes": []}',
@@ -493,7 +493,7 @@ class ManagerTest(unittest.TestCase):
             idempotency_key="weel-allocation-alloc-1-40.00",
         )
 
-        call = request.put.call_args
+        call = request.call_args
         self.assertEqual(
             call.args[0], "https://api.xero.com/api.xro/2.0/CreditNotes/cn-1/Allocations"
         )
@@ -509,14 +509,14 @@ class ManagerTest(unittest.TestCase):
             "</Allocation></Allocations>",
         )
 
-    @patch("xero.basemanager.requests")
+    @patch("xero.basemanager.requests.delete")
     def test_delete_allocation_request(self, request):
         """Deleting an allocation should not trip over the missing Status envelope
         """
 
         credentials = Mock(base_url="https://api.xero.com", user_agent=None)
         manager = Manager("CreditNotes", credentials)
-        request.delete.return_value = Mock(
+        request.return_value = Mock(
             status_code=200,
             headers={"content-type": "application/json"},
             text='{"AllocationID": "asp-alloc-1"}',
@@ -526,32 +526,30 @@ class ManagerTest(unittest.TestCase):
         result = manager.delete_allocation("cn-1", "asp-alloc-1")
 
         self.assertEqual(
-            request.delete.call_args.args[0],
+            request.call_args.args[0],
             "https://api.xero.com/api.xro/2.0/CreditNotes/cn-1/Allocations/asp-alloc-1",
         )
         self.assertEqual(result, {"AllocationID": "asp-alloc-1"})
 
-    def test_idempotency_key_must_be_a_string(self):
-        """A non-string idempotency key should fail before the request is made
+    def test_idempotency_key_validation(self):
+        """An unusable idempotency key should fail before the request is made
         """
 
         credentials = Mock(base_url="", user_agent=None)
         manager = Manager("CreditNotes", credentials)
+        allocation = {"AppliedAmount": "40.00"}
 
+        # test a key of the wrong type is rejected
         with self.assertRaises(TypeError):
-            manager.put_allocation("cn-1", {"AppliedAmount": "40.00"}, 1234)
+            manager.put_allocation("cn-1", allocation, 1234)
 
-    def test_idempotency_key_length_is_checked(self):
-        """An empty or over-long idempotency key should fail before the request is made
-        """
+        # test an empty key is rejected rather than quietly dropped
+        with self.assertRaises(ValueError):
+            manager.put_allocation("cn-1", allocation, "")
 
-        credentials = Mock(base_url="", user_agent=None)
-        manager = Manager("CreditNotes", credentials)
-
-        for key in ("", "x" * 129):
-            with self.subTest(key=key):
-                with self.assertRaises(ValueError):
-                    manager.put_allocation("cn-1", {"AppliedAmount": "40.00"}, key)
+        # test a key over Xero's 128 character limit is rejected
+        with self.assertRaises(ValueError):
+            manager.put_allocation("cn-1", allocation, "x" * 129)
 
     def test_parse_api_response_without_a_status_envelope(self):
         """A response with no Status should be returned rather than raising
