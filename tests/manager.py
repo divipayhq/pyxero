@@ -268,6 +268,17 @@ class ManagerTest(unittest.TestCase):
         }
         self.assertEqual(params, expected_params)
 
+    def test_filter_search_term(self):
+        """searchTerm is a query parameter, not a where predicate"""
+        credentials = Mock(base_url="")
+        manager = Manager("contacts", credentials)
+
+        uri, params, method, body, headers, singleobject = manager._filter(
+            searchTerm="fat frog beach cafe"
+        )
+
+        self.assertEqual(params, {"searchTerm": "fat frog beach cafe"})
+
     def test_rawfilter(self):
         """The filter function should correctly handle various arguments"""
         credentials = Mock(base_url="")
