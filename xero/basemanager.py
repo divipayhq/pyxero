@@ -468,7 +468,14 @@ class BaseManager(object):
                 return fmt % (field, get_filter_params(key, value))
 
             # Move any known parameter names to the query string
-            KNOWN_PARAMETERS = ["order", "offset", "page", "pageSize", "includeArchived"]
+            KNOWN_PARAMETERS = [
+                "order",
+                "offset",
+                "page",
+                "pageSize",
+                "includeArchived",
+                "searchTerm",
+            ]
             for param in KNOWN_PARAMETERS:
                 if param in kwargs:
                     params[param] = kwargs.pop(param)
