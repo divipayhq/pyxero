@@ -143,6 +143,24 @@ class ExceptionsTest(unittest.TestCase):
             self.fail("Should raise a XeroBadRequest, not %s" % e)
 
     @patch("requests.get")
+    def test_bad_request_html_without_oauth_problem(self, r_get):
+        "An HTML 400 that is not an OAuth querystring keeps the raw body as the message"
+        head = dict()
+        head["content-type"] = "text/html"
+        body = "<html><body><h1>400 Bad Request</h1></body></html>"
+        r_get.return_value = Mock(status_code=400, text=body, headers=head)
+
+        credentials = Mock(base_url="")
+        xero = Xero(credentials)
+
+        with self.assertRaises(XeroBadRequest) as cm:
+            xero.payments.all()
+
+        self.assertEqual(str(cm.exception), body)
+        self.assertEqual(cm.exception.errors, [body])
+        self.assertEqual(cm.exception.problem, body)
+
+    @patch("requests.get")
     def test_unauthorized_invalid(self, r_get):
         "A session with an invalid token raises an unauthorized exception"
         # Verified response from the live API
