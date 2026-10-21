@@ -74,6 +74,10 @@ class XeroBadRequest(XeroException):
 
         elif response.headers["content-type"].startswith("text/html"):
             payload = parse_qs(response.text)
+            if "oauth_problem" not in payload:
+                self.errors = [response.text]
+                self.problem = response.text
+                return super(XeroBadRequest, self).__init__(response, response.text)
             self.errors = [payload["oauth_problem"][0]]
             self.problem = self.errors[0]
             super(XeroBadRequest, self).__init__(
